@@ -8,22 +8,39 @@ export class ThreadsFeed extends Interaction {
         this.container = this.el.querySelector(".o_threads_feed_container");
         this.currentCarouselIndex = 0;
         this.lazyObserver = null;
+        this.feedAbortController = null;
+        this.editorMode =
+            document.body.classList.contains("editor_enable") ||
+            new URLSearchParams(window.location.search).get("enable_editor") === "1";
     }
 
-    async start() {
-        if (!this.container || document.body.classList.contains("editor_enable")) {
+    start() {
+        if (!this.container || this.editorMode) {
             return;
         }
 
-        // The editor may have previously saved rendered feed markup into the page view.
-        // Remove it immediately so stale posts/media are not kept in the live DOM while
-        // the current feed is loading.
+        // The feed is an optional enhancement. Do not make Odoo wait for the
+        // Threads API before the rest of the page interactions can initialize.
         this.container.replaceChildren();
+        this.renderLoading();
+
+        setTimeout(() => {
+            if (!this.el.isConnected || this.editorMode) {
+                return;
+            }
+            this.loadFeed();
+        }, 0);
+    }
+
+    async loadFeed() {
+        this.feedAbortController?.abort();
+        this.feedAbortController = new AbortController();
 
         try {
             const response = await fetch("/threads/feed?limit=10", {
                 method: "GET",
                 credentials: "same-origin",
+                signal: this.feedAbortController.signal,
             });
             const payload = await response.json();
 
@@ -31,10 +48,29 @@ export class ThreadsFeed extends Interaction {
                 throw new Error(payload.error || "Unable to load Threads feed.");
             }
 
-            this.renderPosts(payload.data || [], payload.profile || {});
+            if (this.el.isConnected && !this.editorMode) {
+                this.renderPosts(payload.data || [], payload.profile || {});
+            }
         } catch (error) {
-            this.renderMessage(error.message || "Unable to load Threads feed.");
+            if (error.name === "AbortError") {
+                return;
+            }
+            if (this.el.isConnected && !this.editorMode) {
+                this.renderMessage(error.message || "Unable to load Threads feed.");
+            }
         }
+    }
+
+    destroy() {
+        this.feedAbortController?.abort();
+        this.lazyObserver?.disconnect();
+    }
+
+    renderLoading() {
+        const element = document.createElement("p");
+        element.className = "o_threads_feed_message o_threads_feed_loading";
+        element.textContent = "Loading Threads feed…";
+        this.container.append(element);
     }
 
     renderPosts(posts, profile) {
