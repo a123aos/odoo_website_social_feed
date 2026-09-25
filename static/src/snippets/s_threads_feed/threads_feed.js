@@ -200,10 +200,9 @@ export class ThreadsFeed extends Interaction {
         const footer = document.createElement("div");
         footer.className = "o_threads_feed_post_footer";
 
-        const metrics = this.renderMetrics({}, post.permalink);
-        if (metrics) {
-            footer.append(metrics);
-        }
+        const metrics = document.createElement("div");
+        metrics.className = "o_threads_feed_metrics o_threads_feed_metrics_loading";
+        footer.append(metrics);
 
         if (post.permalink) {
             const link = document.createElement("a");
