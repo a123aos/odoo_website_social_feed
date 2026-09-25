@@ -1,14 +1,15 @@
 {
     "name": "Website Social Feed",
     "summary": "X and Threads feeds for the Odoo Website Builder",
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "category": "Website/Website",
     "license": "LGPL-3",
     "depends": ["website"],
     "data": [
         "views/snippets/s_x_feed.xml",
         "views/snippets/s_threads_feed.xml",
-        "views/snippets/snippets.xml"
+        "views/snippets/snippets.xml",
+        "views/res_config_settings_views.xml"
     ],
     "assets": {
         "web.assets_frontend": [
