@@ -7,6 +7,7 @@ export class ThreadsFeed extends Interaction {
     setup() {
         this.container = this.el.querySelector(".o_threads_feed_container");
         this.currentCarouselIndex = 0;
+        this.lazyObserver = null;
     }
 
     async start() {
@@ -38,6 +39,28 @@ export class ThreadsFeed extends Interaction {
             this.renderMessage("No Threads posts available.");
             return;
         }
+
+        this.lazyObserver = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) {
+                        continue;
+                    }
+                    const article = entry.target;
+                    this.lazyObserver.unobserve(article);
+                    const post = article._threadsPost;
+                    if (post?.id) {
+                        this.loadInsights(
+                            post.id,
+                            article._threadsMetrics,
+                            post.permalink,
+                        );
+                        this.loadReplies(post.id, article._threadsReplies);
+                    }
+                }
+            },
+            { rootMargin: "300px" },
+        );
 
         const header = document.createElement("div");
         header.className = "o_threads_feed_header";
@@ -178,9 +201,6 @@ export class ThreadsFeed extends Interaction {
         footer.className = "o_threads_feed_post_footer";
 
         const metrics = this.renderMetrics({}, post.permalink);
-        if (post.id) {
-            this.loadInsights(post.id, metrics);
-        }
         if (metrics) {
             footer.append(metrics);
         }
@@ -200,10 +220,13 @@ export class ThreadsFeed extends Interaction {
 
         const replies = document.createElement("div");
         replies.className = "o_threads_feed_replies";
-        replies.textContent = "Loading replies…";
+        replies.textContent = "";
         article.append(replies);
 
-        this.loadReplies(post.id, replies);
+        article._threadsPost = post;
+        article._threadsMetrics = metrics;
+        article._threadsReplies = replies;
+        this.lazyObserver?.observe(article);
 
         return article;
     }
@@ -237,7 +260,7 @@ export class ThreadsFeed extends Interaction {
     }
 
 
-    async loadInsights(postId, container) {
+    async loadInsights(postId, container, permalink) {
         if (!container) {
             return;
         }
@@ -252,13 +275,13 @@ export class ThreadsFeed extends Interaction {
                 throw new Error(payload.error || "Unable to load insights.");
             }
 
-            const parent = container.parentElement;
+            const parent = container?.parentElement;
             if (!parent) {
                 return;
             }
             const replacement = this.renderMetrics(
                 payload.insights || {},
-                null,
+                permalink,
             );
             if (replacement) {
                 container.replaceWith(replacement);
