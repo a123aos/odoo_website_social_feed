@@ -6,9 +6,12 @@
                 <a
                     class="twitter-timeline"
                     href="https://x.com/AritrzOfficial?ref_src=twsrc%5Etfw"
-                >
-                    Posts by AritrzOfficial
-                </a>
+                >Posts by AritrzOfficial</a>
+                <script
+                    async="async"
+                    src="https://platform.x.com/widgets.js"
+                    charset="utf-8"
+                ></script>
             </div>
         </section>
     </template>
