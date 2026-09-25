@@ -1,6 +1,7 @@
 import logging
 import os
 import secrets
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -16,6 +17,9 @@ THREADS_TOKEN_URL = "https://graph.threads.net/oauth/access_token"
 THREADS_LONG_LIVED_TOKEN_URL = "https://graph.threads.net/access_token"
 THREADS_REFRESH_TOKEN_URL = "https://graph.threads.net/refresh_access_token"
 THREADS_API_URL = "https://graph.threads.net/me/threads"
+THREADS_PROFILE_URL = "https://graph.threads.net/me"
+THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
+THREADS_INSIGHTS_METRICS = "likes,replies,reposts"
 
 
 class ThreadsController(http.Controller):
@@ -63,7 +67,7 @@ class ThreadsController(http.Controller):
         params = {
             "client_id": client_id,
             "redirect_uri": self._redirect_uri(),
-            "scope": "threads_basic",
+            "scope": "threads_basic,threads_manage_insights",
             "response_type": "code",
             "state": state,
         }
@@ -167,6 +171,18 @@ class ThreadsController(http.Controller):
                 "odoo_website_social_feed.threads_user_id",
                 user_id,
             )
+
+            profile = self._get_profile(access_token)
+            if profile.get("username"):
+                params.set_param(
+                    "odoo_website_social_feed.threads_username",
+                    profile["username"],
+                )
+            if profile.get("threads_profile_picture_url"):
+                params.set_param(
+                    "odoo_website_social_feed.threads_profile_picture_url",
+                    profile["threads_profile_picture_url"],
+                )
             if expires_in:
                 expires_at = datetime.now(timezone.utc) + timedelta(
                     seconds=expires_in
@@ -215,6 +231,48 @@ class ThreadsController(http.Controller):
             headers=[("Content-Type", "text/plain; charset=utf-8")],
         )
 
+    def _get_profile(self, access_token):
+        try:
+            response = requests.get(
+                THREADS_PROFILE_URL,
+                params={
+                    "fields": THREADS_PROFILE_FIELDS,
+                    "access_token": access_token,
+                },
+                timeout=15,
+            )
+            response.raise_for_status()
+            return response.json()
+        except (requests.RequestException, ValueError):
+            _logger.exception("Threads profile request failed")
+            return {}
+
+    def _get_post_insights(self, access_token, post_id):
+        try:
+            response = requests.get(f"https://graph.threads.net/{post_id}/insights",
+                params={
+                    "metric": THREADS_INSIGHTS_METRICS,
+                    "access_token": access_token,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError):
+            _logger.warning("Unable to load insights for Threads post %s", post_id)
+            return {}
+
+        metrics = {}
+        for item in payload.get("data", []):
+            name = item.get("name")
+            if not name:
+                continue
+            values = item.get("values") or []
+            if values and "value" in values[0]:
+                metrics[name] = values[0]["value"]
+            elif isinstance(item.get("total_value"), dict):
+                metrics[name] = item["total_value"].get("value")
+        return metrics
     def _refresh_token_if_needed(self):
         params = request.env["ir.config_parameter"].sudo()
         access_token = params.get_param(
@@ -315,9 +373,60 @@ class ThreadsController(http.Controller):
                 status=502,
             )
 
+        posts = payload.get("data", [])
+
+        profile = self._get_profile(access_token)
+        params = request.env["ir.config_parameter"].sudo()
+        if profile:
+            if profile.get("username"):
+                params.set_param(
+                    "odoo_website_social_feed.threads_username",
+                    profile["username"],
+                )
+            if profile.get("threads_profile_picture_url"):
+                params.set_param(
+                    "odoo_website_social_feed.threads_profile_picture_url",
+                    profile["threads_profile_picture_url"],
+                )
+        else:
+            profile = {
+                "username": params.get_param("odoo_website_social_feed.threads_username"),
+                "threads_profile_picture_url": params.get_param("odoo_website_social_feed.threads_profile_picture_url"),
+            }
+
+        insights = {}
+        if posts:
+            with ThreadPoolExecutor(max_workers=min(5, len(posts))) as executor:
+                futures = {
+                    executor.submit(
+                        self._get_post_insights,
+                        access_token,
+                        post.get("id"),
+                    ): post.get("id")
+                    for post in posts
+                    if post.get("id")
+                }
+                for future in as_completed(futures):
+                    post_id = futures[future]
+                    try:
+                        insights[post_id] = future.result()
+                    except Exception:
+                        _logger.exception(
+                            "Unexpected Threads insight error for post %s",
+                            post_id,
+                        )
+
+        for post in posts:
+            post["insights"] = insights.get(post.get("id"), {})
+
         return request.make_json_response(
             {
-                "data": payload.get("data", []),
+                "data": posts,
+                "profile": {
+                    "username": profile.get("username"),
+                    "name": profile.get("name"),
+                    "threads_profile_picture_url": profile.get("threads_profile_picture_url"),
+                },
                 "paging": payload.get("paging", {}),
             }
         )
