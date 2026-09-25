@@ -15,6 +15,11 @@ export class ThreadsFeed extends Interaction {
             return;
         }
 
+        // The editor may have previously saved rendered feed markup into the page view.
+        // Remove it immediately so stale posts/media are not kept in the live DOM while
+        // the current feed is loading.
+        this.container.replaceChildren();
+
         try {
             const response = await fetch("/threads/feed?limit=10", {
                 method: "GET",
