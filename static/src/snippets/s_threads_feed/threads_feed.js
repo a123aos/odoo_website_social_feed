@@ -66,19 +66,24 @@ export class ThreadsFeed extends Interaction {
             const author = document.createElement("div");
             author.className = "o_threads_feed_author";
 
-            const username = document.createElement("a");
-            username.className = "o_threads_feed_username";
-            username.href = post.username
+            const displayName = document.createElement("a");
+            displayName.className = "o_threads_feed_display_name";
+            displayName.href = post.username
                 ? `https://www.threads.com/@${encodeURIComponent(post.username)}`
                 : post.permalink || "https://www.threads.com/";
-            username.target = "_blank";
-            username.rel = "noopener noreferrer";
-            username.textContent = post.username ? `@${post.username}` : "Threads";
+            displayName.target = "_blank";
+            displayName.rel = "noopener noreferrer";
+            displayName.textContent = profile.name || "Threads";
+            author.append(displayName);
+
+            const username = document.createElement("div");
+            username.className = "o_threads_feed_username";
+            username.textContent = post.username ? `@${post.username}` : "";
             author.append(username);
 
             const source = document.createElement("span");
             source.className = "o_threads_feed_source";
-            source.textContent = post.timestamp ? this.formatDate(post.timestamp) : "Threads";
+            source.textContent = post.timestamp ? this.formatDate(post.timestamp) : "";
             author.append(source);
 
             header.append(author);
@@ -146,10 +151,11 @@ export class ThreadsFeed extends Interaction {
 
     renderMetrics(insights) {
         const metrics = [
-            ["likes", "Like", "M0 2.5C0 1.12 1.12 0 2.5 0S5 1.12 5 2.5 3.88 5 2.5 5 0 3.88 0 2.5Z"],
-            ["replies", "Reply", "M12 3a9 9 0 1 0 0 18 8.96 8.96 0 0 0 3.94-.9 1 1 0 0 1 .61-.09l4.21.75-.76-4.17a1 1 0 0 1 .09-.62A8.96 8.96 0 0 0 21 12a9 9 0 0 0-9-9Z"],
-            ["reposts", "Repost", "M4.52 7A8.99 8.99 0 0 1 12 3c3.72 0 6.99 1.85 8.5 4.7a1 1 0 0 0 1.84-.78A11 11 0 0 0 12 1C8.28 1 4.99 2.85 3 5.67V3a1 1 0 0 0-2 0v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H4.52Z"],
+            ["likes", "Like", "M16.5 2c-1.666 0-3.278.707-4.5 1.937C10.778 2.707 9.166 2 7.5 2c-4.122 0-7 3.084-7 7.5 0 4.628 4.345 9.962 10.811 13.272a1.507 1.507 0 0 0 1.378 0C19.155 19.462 23.5 14.128 23.5 9.5c0-4.416-2.878-7.5-7-7.5Z"],
+            ["replies", "Reply", "M12 3a9 9 0 0 0 0 18c1.414 0 2.75-.325 3.937-.904a1 1 0 0 1 .614-.086l4.206.752-.764-4.17a1 1 0 0 1 .086-.621C20.67 14.774 21 13.427 21 12a9 9 0 0 0-9-9z"],
+            ["reposts", "Repost", "M4.516 6.999a8.99 8.99 0 0 1 7.483-4 9.002 9.002 0 0 1 8.294 5.498 1 1 0 0 0 1.842-.78A11.002 11.002 0 0 0 11.999 1C8.278 1 4.99 2.848 3 5.674V3a1 1 0 1 0-2 0v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H4.517zM2.396 14.971a1 1 0 0 1 1.31.532A9.002 9.002 0 0 0 12 21 8.99 8.99 0 0 0 19.483 17h-2.484a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-2.675A10.986 10.986 0 0 1 12 23a11.002 11.002 0 0 1-10.135-6.718 1 1 0 0 1 .532-1.31z"],
         ];
+
         const wrapper = document.createElement("div");
         wrapper.className = "o_threads_feed_metrics";
 
@@ -167,15 +173,11 @@ export class ThreadsFeed extends Interaction {
             const svg = document.createElement("svg");
             svg.className = "o_threads_feed_metric_icon";
             svg.setAttribute("viewBox", "0 0 24 24");
-            svg.setAttribute("fill", "none");
-            svg.setAttribute("stroke", "currentColor");
+            svg.setAttribute("fill", "currentColor");
             svg.setAttribute("aria-hidden", "true");
 
             const pathElement = document.createElement("path");
             pathElement.setAttribute("d", path);
-            pathElement.setAttribute("stroke-width", "1.9");
-            pathElement.setAttribute("stroke-linecap", "round");
-            pathElement.setAttribute("stroke-linejoin", "round");
             svg.append(pathElement);
 
             const count = document.createElement("span");
