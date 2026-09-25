@@ -1,6 +1,8 @@
 import logging
 import os
 import secrets
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
@@ -20,6 +22,13 @@ THREADS_API_URL = "https://graph.threads.net/me/threads"
 THREADS_PROFILE_URL = "https://graph.threads.net/me"
 THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
 THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
+THREADS_FEED_CACHE_TTL = 60
+THREADS_REPLIES_CACHE_TTL = 60
+
+_feed_cache = {}
+_replies_cache = {}
+_cache_lock = threading.Lock()
+
 THREADS_REPLY_FIELDS = (
     "id,text,timestamp,media_type,media_url,thumbnail_url,gif_url,"
     "permalink,shortcode,username,profile_picture_url"
@@ -182,6 +191,11 @@ class ThreadsController(http.Controller):
                     "odoo_website_social_feed.threads_username",
                     profile["username"],
                 )
+            if profile.get("name"):
+                params.set_param(
+                    "odoo_website_social_feed.threads_name",
+                    profile["name"],
+                )
             if profile.get("threads_profile_picture_url"):
                 params.set_param(
                     "odoo_website_social_feed.threads_profile_picture_url",
@@ -199,6 +213,7 @@ class ThreadsController(http.Controller):
                 "odoo_website_social_feed.threads_connected",
                 "1",
             )
+            self._invalidate_social_cache()
 
         except (requests.RequestException, KeyError, ValueError) as exc:
             _logger.exception("Threads OAuth token exchange failed")
@@ -234,6 +249,25 @@ class ThreadsController(http.Controller):
             message,
             headers=[("Content-Type", "text/plain; charset=utf-8")],
         )
+
+    def _invalidate_social_cache(self):
+        with _cache_lock:
+            _feed_cache.clear()
+            _replies_cache.clear()
+
+    def _get_cached(self, cache, key, ttl):
+        now = time.monotonic()
+        with _cache_lock:
+            item = cache.get(key)
+            if item and now - item[0] < ttl:
+                return item[1]
+            if item:
+                cache.pop(key, None)
+        return None
+
+    def _set_cached(self, cache, key, value):
+        with _cache_lock:
+            cache[key] = (time.monotonic(), value)
 
     def _get_profile(self, access_token):
         try:
@@ -380,6 +414,11 @@ class ThreadsController(http.Controller):
         except (TypeError, ValueError):
             limit = 10
 
+        cache_key = (post_id, limit)
+        cached = self._get_cached(_replies_cache, cache_key, THREADS_REPLIES_CACHE_TTL)
+        if cached is not None:
+            return request.make_json_response(cached)
+
         try:
             response = requests.get(
                 f"https://graph.threads.net/{post_id}/replies",
@@ -421,12 +460,12 @@ class ThreadsController(http.Controller):
                 status=502,
             )
 
-        return request.make_json_response(
-            {
-                "data": payload.get("data", []),
-                "paging": payload.get("paging", {}),
-            }
-        )
+        result = {
+            "data": payload.get("data", []),
+            "paging": payload.get("paging", {}),
+        }
+        self._set_cached(_replies_cache, cache_key, result)
+        return request.make_json_response(result)
 
     @http.route(
         "/threads/feed",
@@ -447,6 +486,11 @@ class ThreadsController(http.Controller):
             limit = max(1, min(int(limit), 25))
         except (TypeError, ValueError):
             limit = 10
+
+        cache_key = limit
+        cached = self._get_cached(_feed_cache, cache_key, THREADS_FEED_CACHE_TTL)
+        if cached is not None:
+            return request.make_json_response(cached)
 
         try:
             response = requests.get(
@@ -472,24 +516,14 @@ class ThreadsController(http.Controller):
 
         posts = payload.get("data", [])
 
-        profile = self._get_profile(access_token)
         params = request.env["ir.config_parameter"].sudo()
-        if profile:
-            if profile.get("username"):
-                params.set_param(
-                    "odoo_website_social_feed.threads_username",
-                    profile["username"],
-                )
-            if profile.get("threads_profile_picture_url"):
-                params.set_param(
-                    "odoo_website_social_feed.threads_profile_picture_url",
-                    profile["threads_profile_picture_url"],
-                )
-        else:
-            profile = {
-                "username": params.get_param("odoo_website_social_feed.threads_username"),
-                "threads_profile_picture_url": params.get_param("odoo_website_social_feed.threads_profile_picture_url"),
-            }
+        profile = {
+            "username": params.get_param("odoo_website_social_feed.threads_username"),
+            "name": params.get_param("odoo_website_social_feed.threads_name"),
+            "threads_profile_picture_url": params.get_param(
+                "odoo_website_social_feed.threads_profile_picture_url"
+            ),
+        }
 
         insights = {}
         if posts:
@@ -516,14 +550,14 @@ class ThreadsController(http.Controller):
         for post in posts:
             post["insights"] = insights.get(post.get("id"), {})
 
-        return request.make_json_response(
-            {
-                "data": posts,
-                "profile": {
-                    "username": profile.get("username"),
-                    "name": profile.get("name"),
-                    "threads_profile_picture_url": profile.get("threads_profile_picture_url"),
-                },
-                "paging": payload.get("paging", {}),
-            }
-        )
+        result = {
+            "data": posts,
+            "profile": {
+                "username": profile.get("username"),
+                "name": profile.get("name"),
+                "threads_profile_picture_url": profile.get("threads_profile_picture_url"),
+            },
+            "paging": payload.get("paging", {}),
+        }
+        self._set_cached(_feed_cache, cache_key, result)
+        return request.make_json_response(result)
