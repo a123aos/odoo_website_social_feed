@@ -84,7 +84,7 @@ export class XFeed extends Interaction {
         link.href = `https://x.com/${encodeURIComponent(this.username)}`;
         link.textContent = _t("Posts by @%s", this.username);
         link.setAttribute("data-dnt", "true");
-        link.setAttribute("data-height", "600");
+        link.setAttribute("data-tweet-limit", "3");
         this.container.replaceChildren(link);
 
         try {
