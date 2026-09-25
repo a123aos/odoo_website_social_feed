@@ -74,9 +74,15 @@ export class XFeed extends Interaction {
             return;
         }
 
+        const link = document.createElement("a");
+        link.href = `https://x.com/${encodeURIComponent(this.username)}`;
+        link.textContent = _t("Posts by @%s", this.username);
+        link.className = "twitter-timeline";
+        link.setAttribute("data-dnt", "true");
+        this.container.replaceChildren(link);
+
         try {
             const twttr = await loadXWidgets();
-            this.container.replaceChildren();
             await twttr.widgets.createTimeline(
                 {
                     sourceType: "profile",
@@ -88,14 +94,8 @@ export class XFeed extends Interaction {
                 },
             );
         } catch (error) {
+            // Keep the profile link as a visible fallback when X returns an error (for example 429).
             console.warn("Unable to render X timeline", error);
-
-            const link = document.createElement("a");
-            link.href = `https://x.com/${encodeURIComponent(this.username)}`;
-            link.textContent = _t("Posts by @%s", this.username);
-            link.className = "twitter-timeline";
-            link.setAttribute("data-dnt", "true");
-            this.container.replaceChildren(link);
         }
     }
 
