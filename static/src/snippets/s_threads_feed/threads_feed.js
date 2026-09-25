@@ -237,39 +237,49 @@ export class ThreadsFeed extends Interaction {
 
     renderMetrics(insights) {
         const metrics = [
-            ["likes", "Like", "M16.5 2c-1.666 0-3.278.707-4.5 1.937C10.778 2.707 9.166 2 7.5 2c-4.122 0-7 3.084-7 7.5 0 4.628 4.345 9.962 10.811 13.272a1.507 1.507 0 0 0 1.378 0C19.155 19.462 23.5 14.128 23.5 9.5c0-4.416-2.878-7.5-7-7.5Z"],
-            ["replies", "Reply", "M12 3a9 9 0 0 0 0 18c1.414 0 2.75-.325 3.937-.904a1 1 0 0 1 .614-.086l4.206.752-.764-4.17a1 1 0 0 1 .086-.621C20.67 14.774 21 13.427 21 12a9 9 0 0 0-9-9z"],
-            ["reposts", "Repost", "M4.516 6.999a8.99 8.99 0 0 1 7.483-4 9.002 9.002 0 0 1 8.294 5.498 1 1 0 0 0 1.842-.78A11.002 11.002 0 0 0 11.999 1C8.278 1 4.99 2.848 3 5.674V3a1 1 0 1 0-2 0v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H4.517zM2.396 14.971a1 1 0 0 1 1.31.532A9.002 9.002 0 0 0 12 21 8.99 8.99 0 0 0 19.483 17h-2.484a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-2.675A10.986 10.986 0 0 1 12 23a11.002 11.002 0 0 1-10.135-6.718 1 1 0 0 1 .532-1.31z"],
+            {
+                key: "likes",
+                title: "Like",
+                svg: '<svg viewBox="0 0 24 24" fill="currentColor" width="18.75" height="18.75" role="img" aria-hidden="true"><path d="M16.5 2c-1.666 0-3.278.707-4.5 1.937C10.778 2.707 9.166 2 7.5 2c-4.122 0-7 3.084-7 7.5 0 4.628 4.345 9.962 10.811 13.272a1.507 1.507 0 0 0 1.378 0C19.155 19.462 23.5 14.128 23.5 9.5c0-4.416-2.878-7.5-7-7.5zM12 20.876c-5.692-2.98-9.5-7.53-9.5-11.376 0-3.341 1.963-5.5 5-5.5 2 0 3.75 1.75 4.5 3.5.75-1.75 2.5-3.5 4.5-3.5 3.038 0 5 2.159 5 5.5 0 3.847-3.808 8.396-9.5 11.376z"></path></svg>',
+            },
+            {
+                key: "replies",
+                title: "Reply",
+                svg: '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" role="img" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 3a9 9 0 0 0 0 18c1.414 0 2.75-.325 3.937-.904a1 1 0 0 1 .614-.086l4.206.752-.764-4.17a1 1 0 0 1 .086-.621C20.67 14.774 21 13.427 21 12a9 9 0 0 0-9-9zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11c0 1.62-.351 3.162-.982 4.549l.966 5.27a1 1 0 0 1-1.16 1.165l-5.312-.95C15.134 22.656 13.606 23 12 23 5.925 23 1 18.075 1 12z"></path></svg>',
+            },
+            {
+                key: "reposts",
+                title: "Repost",
+                svg: '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" role="img" aria-hidden="true"><path d="M4.516 6.999a8.99 8.99 0 0 1 7.483-4 9.002 9.002 0 0 1 8.294 5.498 1 1 0 0 0 1.842-.78A11.002 11.002 0 0 0 11.999 1C8.278 1 4.99 2.848 3 5.674V3a1 1 0 1 0-2 0v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H4.517zM2.396 14.971a1 1 0 0 1 1.31.532A9.002 9.002 0 0 0 12 21 8.99 8.99 0 0 0 19.483 17h-2.484a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-2.675A10.986 10.986 0 0 1 12 23a11.002 11.002 0 0 1-10.135-6.718 1 1 0 0 1 .532-1.31z"></path></svg>',
+            },
         ];
 
         const wrapper = document.createElement("div");
         wrapper.className = "o_threads_feed_metrics";
 
-        for (const [key, title, path] of metrics) {
-            const number = Number(insights[key]);
+        for (const metric of metrics) {
+            const number = Number(insights[metric.key]);
             if (!Number.isFinite(number) || number <= 0) {
                 continue;
             }
 
             const item = document.createElement("span");
             item.className = "o_threads_feed_metric";
-            item.title = title;
-            item.setAttribute("aria-label", title + ": " + this.formatCount(number));
+            item.title = metric.title;
+            item.setAttribute(
+                "aria-label",
+                metric.title + ": " + this.formatCount(number),
+            );
 
-            const svg = document.createElement("svg");
-            svg.className = "o_threads_feed_metric_icon";
-            svg.setAttribute("viewBox", "0 0 24 24");
-            svg.setAttribute("fill", "currentColor");
-            svg.setAttribute("aria-hidden", "true");
-
-            const pathElement = document.createElement("path");
-            pathElement.setAttribute("d", path);
-            svg.append(pathElement);
+            const icon = document.createElement("span");
+            icon.className = "o_threads_feed_metric_icon";
+            icon.innerHTML = metric.svg;
 
             const count = document.createElement("span");
+            count.className = "o_threads_feed_metric_count";
             count.textContent = this.formatCount(number);
 
-            item.append(svg, count);
+            item.append(icon, count);
             wrapper.append(item);
         }
 
