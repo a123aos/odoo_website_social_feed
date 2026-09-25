@@ -24,6 +24,6 @@
             "odoo_website_social_feed/static/src/builder/plugins/options/threads_feed_option.xml"
         ]
     },
-    "installable": true,
-    "application": false
+    "installable": True,
+    "application": False
 }
