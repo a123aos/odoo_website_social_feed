@@ -145,30 +145,47 @@ export class ThreadsFeed extends Interaction {
     }
 
     renderMetrics(insights) {
-        const values = [
-            ["likes", "Likes"],
-            ["replies", "Replies"],
-            ["reposts", "Reposts"],
+        const metrics = [
+            ["likes", "Like", "M0 2.5C0 1.12 1.12 0 2.5 0S5 1.12 5 2.5 3.88 5 2.5 5 0 3.88 0 2.5Z"],
+            ["replies", "Reply", "M12 3a9 9 0 1 0 0 18 8.96 8.96 0 0 0 3.94-.9 1 1 0 0 1 .61-.09l4.21.75-.76-4.17a1 1 0 0 1 .09-.62A8.96 8.96 0 0 0 21 12a9 9 0 0 0-9-9Z"],
+            ["reposts", "Repost", "M4.52 7A8.99 8.99 0 0 1 12 3c3.72 0 6.99 1.85 8.5 4.7a1 1 0 0 0 1.84-.78A11 11 0 0 0 12 1C8.28 1 4.99 2.85 3 5.67V3a1 1 0 0 0-2 0v5a1 1 0 0 0 1 1h5a1 1 0 0 0 0-2H4.52Z"],
         ];
-        const items = values
-            .filter(([key]) => Number.isFinite(Number(insights[key])))
-            .map(([key, label]) => {
-                const item = document.createElement("span");
-                item.className = "o_threads_feed_metric";
-                item.textContent = label + ": " + this.formatCount(insights[key]);
-                return item;
-            });
-
-        if (!items.length) {
-            return null;
-        }
-
         const wrapper = document.createElement("div");
         wrapper.className = "o_threads_feed_metrics";
-        for (const item of items) {
+
+        for (const [key, title, path] of metrics) {
+            const number = Number(insights[key]);
+            if (!Number.isFinite(number) || number <= 0) {
+                continue;
+            }
+
+            const item = document.createElement("span");
+            item.className = "o_threads_feed_metric";
+            item.title = title;
+            item.setAttribute("aria-label", title + ": " + this.formatCount(number));
+
+            const svg = document.createElement("svg");
+            svg.className = "o_threads_feed_metric_icon";
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.setAttribute("fill", "none");
+            svg.setAttribute("stroke", "currentColor");
+            svg.setAttribute("aria-hidden", "true");
+
+            const pathElement = document.createElement("path");
+            pathElement.setAttribute("d", path);
+            pathElement.setAttribute("stroke-width", "1.9");
+            pathElement.setAttribute("stroke-linecap", "round");
+            pathElement.setAttribute("stroke-linejoin", "round");
+            svg.append(pathElement);
+
+            const count = document.createElement("span");
+            count.textContent = this.formatCount(number);
+
+            item.append(svg, count);
             wrapper.append(item);
         }
-        return wrapper;
+
+        return wrapper.childElementCount ? wrapper : null;
     }
 
     formatCount(value) {
