@@ -37,6 +37,12 @@
     font-size: 14px;
     font-weight: 700;
     line-height: 1;
+    overflow: hidden;
+}
+
+.s_threads_feed img.o_threads_feed_avatar {
+    object-fit: cover;
+    background: #f5f5f5;
 }
 
 .s_threads_feed .o_threads_feed_author {
@@ -78,6 +84,17 @@
     border-radius: 14px;
     object-fit: cover;
     background: #f5f5f5;
+}
+
+.s_threads_feed .o_threads_feed_metrics {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.s_threads_feed .o_threads_feed_metric {
+    white-space: nowrap;
 }
 
 .s_threads_feed .o_threads_feed_post_footer {
