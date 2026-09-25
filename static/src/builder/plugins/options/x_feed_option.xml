@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="odoo_website_social_feed.XFeedOption">
+        <BuilderRow label.translate="X Account">
+            <BuilderTextInput action="'xFeed'" placeholder.translate="Your X account" preview="false" prefix="'@'"/>
+        </BuilderRow>
+    </t>
+</templates>
