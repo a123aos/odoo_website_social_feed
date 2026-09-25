@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <template id="s_x_feed" name="X Feed">
-        <section class="s_x_feed" data-x-feed="aritrz" data-x-feed-is-default="true">
-            <div class="o_container_small o_x_feed_container o_not_editable"/>
+        <section class="s_x_feed" data-x-feed="AritrzOfficial" data-x-feed-is-default="true">
+            <div class="o_container_small o_x_feed_container o_not_editable">
+                <a
+                    class="twitter-timeline"
+                    href="https://x.com/AritrzOfficial?ref_src=twsrc%5Etfw"
+                >
+                    Posts by AritrzOfficial
+                </a>
+            </div>
         </section>
     </template>
 </odoo>
