@@ -3,7 +3,6 @@
     flex-direction: column;
     gap: 16px;
     min-height: 120px;
-    max-width: 680px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -275,7 +274,7 @@
 .s_threads_feed .o_threads_feed_post {
     display: flex;
     flex-direction: column;
-    height: 560px;
+    height: min(560px, 68vh);
     overflow: hidden;
 }
 
@@ -336,6 +335,6 @@
 
 @media (max-width: 575.98px) {
     .s_threads_feed .o_threads_feed_post {
-        height: 520px;
+        height: min(520px, 72vh);
     }
 }
