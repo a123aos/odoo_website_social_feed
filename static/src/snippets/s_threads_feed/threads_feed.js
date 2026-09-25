@@ -46,7 +46,31 @@ export class ThreadsFeed extends Interaction {
 
             const header = document.createElement("div");
             header.className = "o_threads_feed_post_header";
-            header.textContent = post.username ? `@${post.username}` : "";
+
+            const avatar = document.createElement("span");
+            avatar.className = "o_threads_feed_avatar";
+            avatar.textContent = this.getInitial(post.username);
+            header.append(avatar);
+
+            const author = document.createElement("div");
+            author.className = "o_threads_feed_author";
+
+            const username = document.createElement("a");
+            username.className = "o_threads_feed_username";
+            username.href = post.username
+                ? `https://www.threads.com/@${encodeURIComponent(post.username)}`
+                : post.permalink || "https://www.threads.com/";
+            username.target = "_blank";
+            username.rel = "noopener noreferrer";
+            username.textContent = post.username ? `@${post.username}` : "Threads";
+            author.append(username);
+
+            const source = document.createElement("span");
+            source.className = "o_threads_feed_source";
+            source.textContent = post.timestamp ? this.formatDate(post.timestamp) : "Threads";
+            author.append(source);
+
+            header.append(author);
             article.append(header);
 
             if (post.text) {
@@ -64,6 +88,7 @@ export class ThreadsFeed extends Interaction {
                     video.src = mediaUrl;
                     video.controls = true;
                     video.preload = "metadata";
+                    video.playsInline = true;
                     article.append(video);
                 } else {
                     const image = document.createElement("img");
@@ -75,26 +100,17 @@ export class ThreadsFeed extends Interaction {
                 }
             }
 
-            const footer = document.createElement("div");
-            footer.className = "o_threads_feed_post_footer";
-
-            if (post.timestamp) {
-                const date = document.createElement("time");
-                date.dateTime = post.timestamp;
-                date.textContent = this.formatDate(post.timestamp);
-                footer.append(date);
-            }
-
             if (post.permalink) {
+                const footer = document.createElement("div");
+                footer.className = "o_threads_feed_post_footer";
+
                 const link = document.createElement("a");
                 link.href = post.permalink;
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
                 link.textContent = "View on Threads";
                 footer.append(link);
-            }
 
-            if (footer.childElementCount) {
                 article.append(footer);
             }
 
@@ -110,6 +126,10 @@ export class ThreadsFeed extends Interaction {
         element.className = "o_threads_feed_message";
         element.textContent = message;
         this.container.append(element);
+    }
+
+    getInitial(username) {
+        return (username || "T").replace(/^@+/, "").charAt(0).toUpperCase();
     }
 
     formatDate(value) {
