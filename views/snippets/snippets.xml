@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="snippets" inherit_id="website.snippets">
+        <xpath expr="//t[@t-snippet='website.s_instagram_page']" position="after">
+            <t t-snippet="odoo_website_social_feed.s_x_feed" string="X Feed" group="social">
+                <keywords>social, x, twitter, feed, timeline, posts</keywords>
+            </t>
+            <t t-snippet="odoo_website_social_feed.s_threads_feed" string="Threads Feed" group="social">
+                <keywords>social, threads, feed, timeline, posts</keywords>
+            </t>
+        </xpath>
+    </template>
+</odoo>
