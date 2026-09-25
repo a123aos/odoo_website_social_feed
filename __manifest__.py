@@ -13,7 +13,6 @@
     ],
     "assets": {
         "web.assets_frontend": [
-            "odoo_website_social_feed/static/src/snippets/s_x_feed/x_feed.js",
             "odoo_website_social_feed/static/src/snippets/s_x_feed/000.scss",
             "odoo_website_social_feed/static/src/snippets/s_threads_feed/threads_feed.js",
             "odoo_website_social_feed/static/src/snippets/s_threads_feed/000.scss"
