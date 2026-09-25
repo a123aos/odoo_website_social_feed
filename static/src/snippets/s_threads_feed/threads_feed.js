@@ -6,6 +6,7 @@ export class ThreadsFeed extends Interaction {
 
     setup() {
         this.container = this.el.querySelector(".o_threads_feed_container");
+        this.currentCarouselIndex = 0;
     }
 
     async start() {
@@ -38,108 +39,184 @@ export class ThreadsFeed extends Interaction {
             return;
         }
 
-        const fragment = document.createDocumentFragment();
+        const header = document.createElement("div");
+        header.className = "o_threads_feed_header";
+
+        const logoLink = document.createElement("a");
+        logoLink.className = "o_threads_feed_logo";
+        logoLink.href = profile.username
+            ? `https://www.threads.com/@${encodeURIComponent(profile.username)}`
+            : "https://www.threads.com/";
+        logoLink.target = "_blank";
+        logoLink.rel = "noopener noreferrer";
+        logoLink.setAttribute("aria-label", "Open Threads profile");
+        logoLink.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015c-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164c1.43 1.783 3.631 2.698 6.54 2.717c2.623-.02 4.358-.631 5.8-2.045c1.647-1.613 1.618-3.593 1.09-4.798c-.31-.71-.873-1.3-1.634-1.75c-.192 1.352-.622 2.446-1.284 3.272c-.886 1.102-2.14 1.704-3.73 1.79c-1.202.065-2.361-.218-3.259-.801c-1.063-.689-1.685-1.74-1.752-2.964c-.065-1.19.408-2.285 1.33-3.082c.88-.76 2.119-1.207 3.583-1.291a14 14 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757c-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32l-1.757-1.18c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388q.163.07.321.142c1.49.7 2.58 1.761 3.154 3.07c.797 1.82.871 4.79-1.548 7.158c-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69q-.362 0-.739.021c-1.836.103-2.98.946-2.916 2.143c.067 1.256 1.452 1.839 2.784 1.767c1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221Z"/>
+            </svg>
+        `;
+        header.append(logoLink);
+        this.container.append(header);
+
+        const carousel = document.createElement("div");
+        carousel.className = "o_threads_feed_carousel";
+
+        const viewport = document.createElement("div");
+        viewport.className = "o_threads_feed_viewport";
+
+        const track = document.createElement("div");
+        track.className = "o_threads_feed_track";
+        viewport.append(track);
+        carousel.append(viewport);
 
         for (const post of posts) {
-            const article = document.createElement("article");
-            article.className = "o_threads_feed_post";
-
-            const header = document.createElement("div");
-            header.className = "o_threads_feed_post_header";
-
-            const avatar = document.createElement("span");
-            avatar.className = "o_threads_feed_avatar";
-            const avatarUrl = profile.threads_profile_picture_url;
-            if (avatarUrl) {
-                const avatarImage = document.createElement("img");
-                avatarImage.className = "o_threads_feed_avatar";
-                avatarImage.alt = profile.name || post.username || "Threads";
-                avatarImage.src = avatarUrl;
-                avatarImage.loading = "lazy";
-                avatarImage.referrerPolicy = "no-referrer";
-                avatar.append(avatarImage);
-            } else {
-                avatar.textContent = this.getInitial(profile.username || post.username);
-            }
-            header.append(avatar);
-
-            const author = document.createElement("div");
-            author.className = "o_threads_feed_author";
-
-            const displayName = document.createElement("a");
-            displayName.className = "o_threads_feed_display_name";
-            displayName.href = post.username
-                ? `https://www.threads.com/@${encodeURIComponent(post.username)}`
-                : post.permalink || "https://www.threads.com/";
-            displayName.target = "_blank";
-            displayName.rel = "noopener noreferrer";
-            displayName.textContent = profile.name || "Threads";
-            author.append(displayName);
-
-            const username = document.createElement("div");
-            username.className = "o_threads_feed_username";
-            username.textContent = post.username ? `@${post.username}` : "";
-            author.append(username);
-
-            const source = document.createElement("span");
-            source.className = "o_threads_feed_source";
-            source.textContent = post.timestamp ? this.formatDate(post.timestamp) : "";
-            author.append(source);
-
-            header.append(author);
-            article.append(header);
-
-            if (post.text) {
-                const text = document.createElement("p");
-                text.className = "o_threads_feed_text";
-                text.textContent = post.text;
-                article.append(text);
-            }
-
-            const mediaUrl = post.media_url || post.thumbnail_url;
-            if (mediaUrl) {
-                if (post.media_type === "VIDEO") {
-                    const video = document.createElement("video");
-                    video.className = "o_threads_feed_media";
-                    video.src = mediaUrl;
-                    video.controls = true;
-                    video.preload = "metadata";
-                    video.playsInline = true;
-                    article.append(video);
-                } else {
-                    const image = document.createElement("img");
-                    image.className = "o_threads_feed_media";
-                    image.alt = "";
-                    image.loading = "lazy";
-                    image.src = mediaUrl;
-                    article.append(image);
-                }
-            }
-
-            if (post.permalink) {
-                const footer = document.createElement("div");
-                footer.className = "o_threads_feed_post_footer";
-
-                const link = document.createElement("a");
-                link.href = post.permalink;
-                link.target = "_blank";
-                link.rel = "noopener noreferrer";
-                link.textContent = "View on Threads";
-                footer.append(link);
-
-                const metrics = this.renderMetrics(post.insights || {});
-                if (metrics) {
-                    footer.prepend(metrics);
-                }
-
-                article.append(footer);
-            }
-
-            fragment.append(article);
+            const article = this.renderPost(post, profile);
+            track.append(article);
         }
 
-        this.container.append(fragment);
+        if (posts.length > this.getItemsPerView()) {
+            const previous = this.createCarouselButton("Previous posts", "‹");
+            const next = this.createCarouselButton("Next posts", "›");
+
+            previous.addEventListener("click", () => {
+                this.moveCarousel(viewport, -1);
+            });
+            next.addEventListener("click", () => {
+                this.moveCarousel(viewport, 1);
+            });
+
+            carousel.append(previous, next);
+        }
+
+        this.container.append(carousel);
     }
+
+    renderPost(post, profile) {
+        const article = document.createElement("article");
+        article.className = "o_threads_feed_post";
+
+        const header = document.createElement("div");
+        header.className = "o_threads_feed_post_header";
+
+        const avatar = document.createElement("span");
+        avatar.className = "o_threads_feed_avatar";
+        const avatarUrl = profile.threads_profile_picture_url;
+        if (avatarUrl) {
+            const avatarImage = document.createElement("img");
+            avatarImage.className = "o_threads_feed_avatar";
+            avatarImage.alt = profile.name || post.username || "Threads";
+            avatarImage.src = avatarUrl;
+            avatarImage.loading = "lazy";
+            avatarImage.referrerPolicy = "no-referrer";
+            avatar.append(avatarImage);
+        } else {
+            avatar.textContent = this.getInitial(profile.username || post.username);
+        }
+        header.append(avatar);
+
+        const author = document.createElement("div");
+        author.className = "o_threads_feed_author";
+
+        const displayName = document.createElement("a");
+        displayName.className = "o_threads_feed_display_name";
+        displayName.href = post.username
+            ? `https://www.threads.com/@${encodeURIComponent(post.username)}`
+            : post.permalink || "https://www.threads.com/";
+        displayName.target = "_blank";
+        displayName.rel = "noopener noreferrer";
+        displayName.textContent = profile.name || "Threads";
+        author.append(displayName);
+
+        const username = document.createElement("div");
+        username.className = "o_threads_feed_username";
+        username.textContent = post.username ? `@${post.username}` : "";
+        author.append(username);
+
+        const source = document.createElement("span");
+        source.className = "o_threads_feed_source";
+        source.textContent = post.timestamp ? this.formatDate(post.timestamp) : "";
+        author.append(source);
+
+        header.append(author);
+        article.append(header);
+
+        if (post.text) {
+            const text = document.createElement("p");
+            text.className = "o_threads_feed_text";
+            text.textContent = post.text;
+            article.append(text);
+        }
+
+        const mediaUrl = post.media_url || post.thumbnail_url;
+        if (mediaUrl) {
+            if (post.media_type === "VIDEO") {
+                const video = document.createElement("video");
+                video.className = "o_threads_feed_media";
+                video.src = mediaUrl;
+                video.controls = true;
+                video.preload = "metadata";
+                video.playsInline = true;
+                article.append(video);
+            } else {
+                const image = document.createElement("img");
+                image.className = "o_threads_feed_media";
+                image.alt = "";
+                image.loading = "lazy";
+                image.src = mediaUrl;
+                article.append(image);
+            }
+        }
+
+        if (post.permalink) {
+            const footer = document.createElement("div");
+            footer.className = "o_threads_feed_post_footer";
+
+            const metrics = this.renderMetrics(post.insights || {});
+            if (metrics) {
+                footer.append(metrics);
+            }
+
+            const link = document.createElement("a");
+            link.href = post.permalink;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "View on Threads";
+            footer.append(link);
+
+            article.append(footer);
+        }
+
+        return article;
+    }
+
+    getItemsPerView() {
+        const width = window.innerWidth;
+        if (width < 576) {
+            return 1;
+        }
+        if (width < 992) {
+            return 2;
+        }
+        return 3;
+    }
+
+    createCarouselButton(label, symbol) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "o_threads_feed_carousel_button";
+        button.setAttribute("aria-label", label);
+        button.textContent = symbol;
+        return button;
+    }
+
+    moveCarousel(viewport, direction) {
+        const amount = viewport.clientWidth * direction;
+        viewport.scrollBy({
+            left: amount,
+            behavior: "smooth",
+        });
+    }
+
 
     renderMessage(message) {
         this.container.replaceChildren();
