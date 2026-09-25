@@ -134,3 +134,23 @@
         border-radius: 14px;
     }
 }
+
+
+.s_threads_feed .o_threads_feed_metrics {
+    align-items: center;
+    gap: 18px;
+    color: rgba(33, 37, 41, 0.58);
+}
+
+.s_threads_feed .o_threads_feed_metric {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.s_threads_feed .o_threads_feed_metric_icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+}
