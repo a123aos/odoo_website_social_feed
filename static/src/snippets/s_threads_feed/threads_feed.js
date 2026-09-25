@@ -177,7 +177,10 @@ export class ThreadsFeed extends Interaction {
         const footer = document.createElement("div");
         footer.className = "o_threads_feed_post_footer";
 
-        const metrics = this.renderMetrics(post.insights || {}, post.permalink);
+        const metrics = this.renderMetrics({}, post.permalink);
+        if (post.id) {
+            this.loadInsights(post.id, metrics);
+        }
         if (metrics) {
             footer.append(metrics);
         }
@@ -233,6 +236,39 @@ export class ThreadsFeed extends Interaction {
         });
     }
 
+
+    async loadInsights(postId, container) {
+        if (!container) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/threads/insights?post_id=${encodeURIComponent(postId)}`,
+                { method: "GET", credentials: "same-origin" },
+            );
+            const payload = await response.json();
+            if (!response.ok || payload.error) {
+                throw new Error(payload.error || "Unable to load insights.");
+            }
+
+            const parent = container.parentElement;
+            if (!parent) {
+                return;
+            }
+            const replacement = this.renderMetrics(
+                payload.insights || {},
+                null,
+            );
+            if (replacement) {
+                container.replaceWith(replacement);
+            } else {
+                container.replaceChildren();
+            }
+        } catch {
+            container.replaceChildren();
+        }
+    }
 
     async loadReplies(postId, container) {
         if (!postId) {
