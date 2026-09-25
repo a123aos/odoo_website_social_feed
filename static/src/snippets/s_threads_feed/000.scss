@@ -274,7 +274,7 @@
 .s_threads_feed .o_threads_feed_post {
     display: flex;
     flex-direction: column;
-    height: min(560px, 68vh);
+    height: 560px;
     overflow: hidden;
 }
 
@@ -335,6 +335,6 @@
 
 @media (max-width: 575.98px) {
     .s_threads_feed .o_threads_feed_post {
-        height: min(520px, 72vh);
+        height: 520px;
     }
 }
