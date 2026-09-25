@@ -37,7 +37,16 @@ export class XFeedAction extends BuilderAction {
         }
         username = username.replace(/^@+/, "").split(/[/?#]/)[0];
         editingElement.dataset.xFeed = username;
-        if (!username) this.services.notification.add(_t("The X account name is not valid"), { type: "warning" });
+        if (!username) {
+            this.services.notification.add(_t("The X account name is not valid"), { type: "warning" });
+            return;
+        }
+
+        const link = editingElement.querySelector(".twitter-timeline");
+        if (link) {
+            link.href = `https://x.com/${encodeURIComponent(username)}?ref_src=twsrc%5Etfw`;
+            link.textContent = `Posts by ${username}`;
+        }
     }
 }
 
