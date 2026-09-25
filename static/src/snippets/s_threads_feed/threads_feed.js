@@ -24,13 +24,13 @@ export class ThreadsFeed extends Interaction {
                 throw new Error(payload.error || "Unable to load Threads feed.");
             }
 
-            this.renderPosts(payload.data || []);
+            this.renderPosts(payload.data || [], payload.profile || {});
         } catch (error) {
             this.renderMessage(error.message || "Unable to load Threads feed.");
         }
     }
 
-    renderPosts(posts) {
+    renderPosts(posts, profile) {
         this.container.replaceChildren();
 
         if (!posts.length) {
@@ -49,7 +49,18 @@ export class ThreadsFeed extends Interaction {
 
             const avatar = document.createElement("span");
             avatar.className = "o_threads_feed_avatar";
-            avatar.textContent = this.getInitial(post.username);
+            const avatarUrl = profile.threads_profile_picture_url;
+            if (avatarUrl) {
+                const avatarImage = document.createElement("img");
+                avatarImage.className = "o_threads_feed_avatar";
+                avatarImage.alt = profile.name || post.username || "Threads";
+                avatarImage.src = avatarUrl;
+                avatarImage.loading = "lazy";
+                avatarImage.referrerPolicy = "no-referrer";
+                avatar.append(avatarImage);
+            } else {
+                avatar.textContent = this.getInitial(profile.username || post.username);
+            }
             header.append(avatar);
 
             const author = document.createElement("div");
@@ -111,6 +122,11 @@ export class ThreadsFeed extends Interaction {
                 link.textContent = "View on Threads";
                 footer.append(link);
 
+                const metrics = this.renderMetrics(post.insights || {});
+                if (metrics) {
+                    footer.prepend(metrics);
+                }
+
                 article.append(footer);
             }
 
@@ -126,6 +142,44 @@ export class ThreadsFeed extends Interaction {
         element.className = "o_threads_feed_message";
         element.textContent = message;
         this.container.append(element);
+    }
+
+    renderMetrics(insights) {
+        const values = [
+            ["likes", "Likes"],
+            ["replies", "Replies"],
+            ["reposts", "Reposts"],
+        ];
+        const items = values
+            .filter(([key]) => Number.isFinite(Number(insights[key])))
+            .map(([key, label]) => {
+                const item = document.createElement("span");
+                item.className = "o_threads_feed_metric";
+                item.textContent = label + ": " + this.formatCount(insights[key]);
+                return item;
+            });
+
+        if (!items.length) {
+            return null;
+        }
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "o_threads_feed_metrics";
+        for (const item of items) {
+            wrapper.append(item);
+        }
+        return wrapper;
+    }
+
+    formatCount(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return "";
+        }
+        return new Intl.NumberFormat(undefined, {
+            notation: "compact",
+            maximumFractionDigits: 1,
+        }).format(number);
     }
 
     getInitial(username) {
