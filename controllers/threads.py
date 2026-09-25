@@ -67,7 +67,7 @@ class ThreadsController(http.Controller):
             "response_type": "code",
             "state": state,
         }
-        return request.redirect(f"{THREADS_AUTHORIZE_URL}?{urlencode(params)}")
+        return request.redirect(f"{THREADS_AUTHORIZE_URL}?{urlencode(params)}", local=False)
 
     @http.route(
         "/threads/callback",
