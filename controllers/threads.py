@@ -3,7 +3,6 @@ import os
 import secrets
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -24,9 +23,11 @@ THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
 THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
 THREADS_FEED_CACHE_TTL = 60
 THREADS_REPLIES_CACHE_TTL = 60
+THREADS_INSIGHTS_CACHE_TTL = 60
 
 _feed_cache = {}
 _replies_cache = {}
+_insights_cache = {}
 _cache_lock = threading.Lock()
 
 THREADS_REPLY_FIELDS = (
@@ -254,6 +255,7 @@ class ThreadsController(http.Controller):
         with _cache_lock:
             _feed_cache.clear()
             _replies_cache.clear()
+            _insights_cache.clear()
 
     def _get_cached(self, cache, key, ttl):
         now = time.monotonic()
@@ -286,6 +288,10 @@ class ThreadsController(http.Controller):
             return {}
 
     def _get_post_insights(self, access_token, post_id):
+        cached = self._get_cached(_insights_cache, post_id, THREADS_INSIGHTS_CACHE_TTL)
+        if cached is not None:
+            return cached
+
         try:
             response = requests.get(f"https://graph.threads.net/{post_id}/insights",
                 params={
@@ -329,7 +335,9 @@ class ThreadsController(http.Controller):
                 metrics[name] = values[0]["value"]
             elif isinstance(item.get("total_value"), dict):
                 metrics[name] = item["total_value"].get("value")
+        self._set_cached(_insights_cache, post_id, metrics)
         return metrics
+
     def _refresh_token_if_needed(self):
         params = request.env["ir.config_parameter"].sudo()
         access_token = params.get_param(
@@ -387,6 +395,31 @@ class ThreadsController(http.Controller):
             return params.get_param(
                 "odoo_website_social_feed.threads_access_token"
             )
+
+    @http.route(
+        "/threads/insights",
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+    )
+    def threads_insights(self, post_id=None, **kwargs):
+        access_token = self._refresh_token_if_needed()
+        if not access_token:
+            return request.make_json_response(
+                {"insights": {}, "error": "Threads feed is not connected."},
+                status=503,
+            )
+
+        if not post_id:
+            return request.make_json_response(
+                {"insights": {}, "error": "Missing Threads post ID."},
+                status=400,
+            )
+
+        return request.make_json_response(
+            {"insights": self._get_post_insights(access_token, post_id)}
+        )
 
     @http.route(
         "/threads/replies",
@@ -524,31 +557,6 @@ class ThreadsController(http.Controller):
                 "odoo_website_social_feed.threads_profile_picture_url"
             ),
         }
-
-        insights = {}
-        if posts:
-            with ThreadPoolExecutor(max_workers=min(5, len(posts))) as executor:
-                futures = {
-                    executor.submit(
-                        self._get_post_insights,
-                        access_token,
-                        post.get("id"),
-                    ): post.get("id")
-                    for post in posts
-                    if post.get("id")
-                }
-                for future in as_completed(futures):
-                    post_id = futures[future]
-                    try:
-                        insights[post_id] = future.result()
-                    except Exception:
-                        _logger.exception(
-                            "Unexpected Threads insight error for post %s",
-                            post_id,
-                        )
-
-        for post in posts:
-            post["insights"] = insights.get(post.get("id"), {})
 
         result = {
             "data": posts,
