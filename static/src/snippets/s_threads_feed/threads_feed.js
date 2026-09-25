@@ -195,6 +195,13 @@ export class ThreadsFeed extends Interaction {
             article.append(footer);
         }
 
+        const replies = document.createElement("div");
+        replies.className = "o_threads_feed_replies";
+        replies.textContent = "Loading replies…";
+        article.append(replies);
+
+        this.loadReplies(post.id, replies);
+
         return article;
     }
 
@@ -226,6 +233,80 @@ export class ThreadsFeed extends Interaction {
         });
     }
 
+
+    async loadReplies(postId, container) {
+        if (!postId) {
+            container.replaceChildren();
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/threads/replies?post_id=${encodeURIComponent(postId)}&limit=10`,
+                { method: "GET", credentials: "same-origin" },
+            );
+            const payload = await response.json();
+            if (!response.ok || payload.error) {
+                throw new Error(payload.error || "Unable to load replies.");
+            }
+
+            container.replaceChildren();
+
+            const replies = payload.data || [];
+            if (!replies.length) {
+                container.textContent = "No replies yet.";
+                return;
+            }
+
+            for (const reply of replies) {
+                const item = document.createElement("article");
+                item.className = "o_threads_feed_reply";
+
+                const name = document.createElement("div");
+                name.className = "o_threads_feed_reply_username";
+                name.textContent = reply.username ? `@${reply.username}` : "Threads user";
+                item.append(name);
+
+                if (reply.text) {
+                    const text = document.createElement("div");
+                    text.className = "o_threads_feed_reply_text";
+                    text.textContent = reply.text;
+                    item.append(text);
+                }
+
+                const mediaUrl = reply.media_url || reply.thumbnail_url || reply.gif_url;
+                if (mediaUrl) {
+                    if (reply.media_type === "VIDEO") {
+                        const video = document.createElement("video");
+                        video.className = "o_threads_feed_reply_media";
+                        video.src = mediaUrl;
+                        video.controls = true;
+                        video.preload = "metadata";
+                        video.playsInline = true;
+                        item.append(video);
+                    } else {
+                        const image = document.createElement("img");
+                        image.className = "o_threads_feed_reply_media";
+                        image.src = mediaUrl;
+                        image.alt = "";
+                        image.loading = "lazy";
+                        item.append(image);
+                    }
+                }
+
+                if (reply.timestamp) {
+                    const time = document.createElement("time");
+                    time.className = "o_threads_feed_reply_time";
+                    time.textContent = this.formatDate(reply.timestamp);
+                    item.append(time);
+                }
+
+                container.append(item);
+            }
+        } catch (error) {
+            container.textContent = error.message || "Unable to load replies.";
+        }
+    }
 
     renderMessage(message) {
         this.container.replaceChildren();
