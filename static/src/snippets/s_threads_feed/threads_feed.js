@@ -140,11 +140,14 @@ export class ThreadsFeed extends Interaction {
         header.append(author);
         article.append(header);
 
+        const content = document.createElement("div");
+        content.className = "o_threads_feed_post_content";
+
         if (post.text) {
             const text = document.createElement("p");
             text.className = "o_threads_feed_text";
             text.textContent = post.text;
-            article.append(text);
+            content.append(text);
         }
 
         const mediaUrl = post.media_url || post.thumbnail_url;
@@ -156,33 +159,39 @@ export class ThreadsFeed extends Interaction {
                 video.controls = true;
                 video.preload = "metadata";
                 video.playsInline = true;
-                article.append(video);
+                content.append(video);
             } else {
                 const image = document.createElement("img");
                 image.className = "o_threads_feed_media";
                 image.alt = "";
                 image.loading = "lazy";
                 image.src = mediaUrl;
-                article.append(image);
+                content.append(image);
             }
         }
 
+        if (content.childElementCount) {
+            article.append(content);
+        }
+
+        const footer = document.createElement("div");
+        footer.className = "o_threads_feed_post_footer";
+
+        const metrics = this.renderMetrics(post.insights || {});
+        if (metrics) {
+            footer.append(metrics);
+        }
+
         if (post.permalink) {
-            const footer = document.createElement("div");
-            footer.className = "o_threads_feed_post_footer";
-
-            const metrics = this.renderMetrics(post.insights || {});
-            if (metrics) {
-                footer.append(metrics);
-            }
-
             const link = document.createElement("a");
             link.href = post.permalink;
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.textContent = "View on Threads";
             footer.append(link);
+        }
 
+        if (footer.childElementCount) {
             article.append(footer);
         }
 
