@@ -19,7 +19,7 @@ THREADS_REFRESH_TOKEN_URL = "https://graph.threads.net/refresh_access_token"
 THREADS_API_URL = "https://graph.threads.net/me/threads"
 THREADS_PROFILE_URL = "https://graph.threads.net/me"
 THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
-THREADS_INSIGHTS_METRICS = "likes,replies,reposts"
+THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
 
 
 class ThreadsController(http.Controller):
@@ -258,8 +258,27 @@ class ThreadsController(http.Controller):
             )
             response.raise_for_status()
             payload = response.json()
-        except (requests.RequestException, ValueError):
-            _logger.warning("Unable to load insights for Threads post %s", post_id)
+        except requests.RequestException as exc:
+            if exc.response is not None:
+                _logger.warning(
+                    "Unable to load insights for Threads post %s: HTTP %s %s",
+                    post_id,
+                    exc.response.status_code,
+                    exc.response.text[:1000],
+                )
+            else:
+                _logger.warning(
+                    "Unable to load insights for Threads post %s: %s",
+                    post_id,
+                    exc,
+                )
+            return {}
+        except ValueError as exc:
+            _logger.warning(
+                "Unable to parse insights for Threads post %s: %s",
+                post_id,
+                exc,
+            )
             return {}
 
         metrics = {}
