@@ -5,7 +5,7 @@ import { _t } from "@web/core/l10n/translation";
 let xWidgetsPromise;
 
 function loadXWidgets() {
-    if (window.twttr?.widgets?.createTimeline) {
+    if (window.twttr?.widgets?.load) {
         return Promise.resolve(window.twttr);
     }
     if (xWidgetsPromise) {
@@ -16,19 +16,25 @@ function loadXWidgets() {
         const existingScript = document.getElementById("twitter-wjs");
 
         if (existingScript) {
-            const waitForTwttr = () => {
-                if (window.twttr?.widgets?.createTimeline) {
+            const waitForWidgets = () => {
+                if (window.twttr?.widgets?.load) {
                     resolve(window.twttr);
                 } else {
                     reject(new Error("X widgets unavailable"));
                 }
             };
 
-            if (window.twttr?.ready) {
-                window.twttr.ready(waitForTwttr);
+            if (window.twttr?.widgets?.load) {
+                waitForWidgets();
+            } else if (window.twttr?.ready) {
+                window.twttr.ready(waitForWidgets);
             } else {
-                existingScript.addEventListener("load", waitForTwttr, { once: true });
-                existingScript.addEventListener("error", () => reject(new Error("Unable to load X widgets.js")), { once: true });
+                existingScript.addEventListener("load", waitForWidgets, { once: true });
+                existingScript.addEventListener(
+                    "error",
+                    () => reject(new Error("Unable to load X widgets.js")),
+                    { once: true },
+                );
             }
             return;
         }
@@ -39,15 +45,14 @@ function loadXWidgets() {
         script.async = true;
         script.charset = "utf-8";
 
-        const twttr = window.twttr = window.twttr || {};
-
+        const twttr = (window.twttr = window.twttr || {});
         twttr._e = twttr._e || [];
         twttr.ready = twttr.ready || function (callback) {
             twttr._e.push(callback);
         };
 
         script.onload = () => {
-            if (window.twttr?.widgets?.createTimeline) {
+            if (window.twttr?.widgets?.load) {
                 resolve(window.twttr);
             } else {
                 reject(new Error("X widgets unavailable"));
@@ -75,26 +80,18 @@ export class XFeed extends Interaction {
         }
 
         const link = document.createElement("a");
+        link.className = "twitter-timeline";
         link.href = `https://x.com/${encodeURIComponent(this.username)}`;
         link.textContent = _t("Posts by @%s", this.username);
-        link.className = "twitter-timeline";
         link.setAttribute("data-dnt", "true");
+        link.setAttribute("data-height", "600");
         this.container.replaceChildren(link);
 
         try {
             const twttr = await loadXWidgets();
-            await twttr.widgets.createTimeline(
-                {
-                    sourceType: "profile",
-                    screenName: this.username,
-                },
-                this.container,
-                {
-                    dnt: true,
-                },
-            );
+            await twttr.widgets.load(this.container);
         } catch (error) {
-            // Keep the profile link as a visible fallback when X returns an error (for example 429).
+            // Keep the official profile timeline fallback link visible when the widget cannot load.
             console.warn("Unable to render X timeline", error);
         }
     }
