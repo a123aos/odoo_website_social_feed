@@ -338,3 +338,51 @@
         height: 520px;
     }
 }
+
+
+.s_threads_feed .o_threads_feed_replies {
+    flex: 0 0 132px;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 10px;
+    padding: 0 4px;
+    scrollbar-width: thin;
+}
+
+.s_threads_feed .o_threads_feed_reply {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.s_threads_feed .o_threads_feed_reply:last-child {
+    border-bottom: 0;
+}
+
+.s_threads_feed .o_threads_feed_reply_username {
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.s_threads_feed .o_threads_feed_reply_text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.s_threads_feed .o_threads_feed_reply_media {
+    display: block;
+    width: 100%;
+    max-height: 120px;
+    margin-top: 6px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f5f5f5;
+}
+
+.s_threads_feed .o_threads_feed_reply_time {
+    display: block;
+    margin-top: 3px;
+    color: rgba(33, 37, 41, 0.48);
+    font-size: 0.72rem;
+}
