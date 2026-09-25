@@ -20,6 +20,10 @@ THREADS_API_URL = "https://graph.threads.net/me/threads"
 THREADS_PROFILE_URL = "https://graph.threads.net/me"
 THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
 THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
+THREADS_REPLY_FIELDS = (
+    "id,text,timestamp,media_type,media_url,thumbnail_url,gif_url,"
+    "permalink,shortcode,username,profile_picture_url"
+)
 
 
 class ThreadsController(http.Controller):
@@ -67,7 +71,7 @@ class ThreadsController(http.Controller):
         params = {
             "client_id": client_id,
             "redirect_uri": self._redirect_uri(),
-            "scope": "threads_basic,threads_manage_insights",
+            "scope": "threads_basic,threads_manage_insights,threads_read_replies",
             "response_type": "code",
             "state": state,
         }
@@ -349,6 +353,80 @@ class ThreadsController(http.Controller):
             return params.get_param(
                 "odoo_website_social_feed.threads_access_token"
             )
+
+    @http.route(
+        "/threads/replies",
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+    )
+    def threads_replies(self, post_id=None, limit=10, **kwargs):
+        access_token = self._refresh_token_if_needed()
+        if not access_token:
+            return request.make_json_response(
+                {"data": [], "error": "Threads feed is not connected."},
+                status=503,
+            )
+
+        if not post_id:
+            return request.make_json_response(
+                {"data": [], "error": "Missing Threads post ID."},
+                status=400,
+            )
+
+        try:
+            limit = max(1, min(int(limit), 20))
+        except (TypeError, ValueError):
+            limit = 10
+
+        try:
+            response = requests.get(
+                f"https://graph.threads.net/{post_id}/replies",
+                params={
+                    "fields": THREADS_REPLY_FIELDS,
+                    "limit": limit,
+                    "access_token": access_token,
+                },
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except requests.RequestException as exc:
+            if exc.response is not None:
+                _logger.warning(
+                    "Unable to load replies for Threads post %s: HTTP %s %s",
+                    post_id,
+                    exc.response.status_code,
+                    exc.response.text[:1000],
+                )
+            else:
+                _logger.warning(
+                    "Unable to load replies for Threads post %s: %s",
+                    post_id,
+                    exc,
+                )
+            return request.make_json_response(
+                {"data": [], "error": "Unable to load Threads replies."},
+                status=502,
+            )
+        except ValueError as exc:
+            _logger.warning(
+                "Unable to parse replies for Threads post %s: %s",
+                post_id,
+                exc,
+            )
+            return request.make_json_response(
+                {"data": [], "error": "Unable to load Threads replies."},
+                status=502,
+            )
+
+        return request.make_json_response(
+            {
+                "data": payload.get("data", []),
+                "paging": payload.get("paging", {}),
+            }
+        )
 
     @http.route(
         "/threads/feed",
