@@ -81,10 +81,8 @@ export class XFeed extends Interaction {
 
         const link = document.createElement("a");
         link.className = "twitter-timeline";
-        link.href = `https://x.com/${encodeURIComponent(this.username)}`;
+        link.href = `https://x.com/${encodeURIComponent(this.username)}?ref_src=twsrc%5Etfw`;
         link.textContent = _t("Posts by @%s", this.username);
-        link.setAttribute("data-dnt", "true");
-        link.setAttribute("data-tweet-limit", "3");
         this.container.replaceChildren(link);
 
         try {
