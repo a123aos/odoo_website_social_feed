@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="s_threads_feed" name="Threads Feed">
+        <section class="s_threads_feed" data-threads-feed="aritrz" data-threads-feed-is-default="true">
+            <div class="o_container_small o_threads_feed_container o_not_editable"/>
+        </section>
+    </template>
+</odoo>
