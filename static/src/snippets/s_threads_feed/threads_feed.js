@@ -177,7 +177,7 @@ export class ThreadsFeed extends Interaction {
         const footer = document.createElement("div");
         footer.className = "o_threads_feed_post_footer";
 
-        const metrics = this.renderMetrics(post.insights || {});
+        const metrics = this.renderMetrics(post.insights || {}, post.permalink);
         if (metrics) {
             footer.append(metrics);
         }
@@ -235,7 +235,7 @@ export class ThreadsFeed extends Interaction {
         this.container.append(element);
     }
 
-    renderMetrics(insights) {
+    renderMetrics(insights, permalink) {
         const metrics = [
             {
                 key: "likes",
@@ -263,12 +263,15 @@ export class ThreadsFeed extends Interaction {
                 continue;
             }
 
-            const item = document.createElement("span");
+            const item = document.createElement("a");
             item.className = "o_threads_feed_metric";
+            item.href = permalink || "#";
+            item.target = "_blank";
+            item.rel = "noopener noreferrer";
             item.title = metric.title;
             item.setAttribute(
                 "aria-label",
-                metric.title + ": " + this.formatCount(number),
+                metric.title + ": " + this.formatCount(number) + ". Open post on Threads.",
             );
 
             const icon = document.createElement("span");
