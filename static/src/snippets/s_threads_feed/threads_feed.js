@@ -172,6 +172,11 @@ export class ThreadsFeed extends Interaction {
             avatarImage.src = avatarUrl;
             avatarImage.loading = "lazy";
             avatarImage.referrerPolicy = "no-referrer";
+            avatarImage.addEventListener("error", () => {
+                avatar.textContent = this.getInitial(
+                    profile.username || post.username
+                );
+            }, { once: true });
             avatar.append(avatarImage);
         } else {
             avatar.textContent = this.getInitial(profile.username || post.username);
