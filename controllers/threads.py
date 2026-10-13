@@ -24,12 +24,14 @@ THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
 THREADS_FEED_CACHE_TTL = 60
 THREADS_PROFILE_REFRESH_TTL = 12 * 60 * 60
 THREADS_PROFILE_RETRY_TTL = 15 * 60
+THREADS_PROFILE_PICTURE_CACHE_TTL = 60 * 60
 THREADS_REPLIES_CACHE_TTL = 60
 THREADS_INSIGHTS_CACHE_TTL = 60
 
 _feed_cache = {}
 _replies_cache = {}
 _insights_cache = {}
+_profile_picture_cache = {}
 _cache_lock = threading.Lock()
 
 THREADS_REPLY_FIELDS = (
@@ -258,6 +260,7 @@ class ThreadsController(http.Controller):
             _feed_cache.clear()
             _replies_cache.clear()
             _insights_cache.clear()
+            _profile_picture_cache.clear()
 
     def _get_cached(self, cache, key, ttl):
         now = time.monotonic()
@@ -288,6 +291,28 @@ class ThreadsController(http.Controller):
         except (requests.RequestException, ValueError):
             _logger.exception("Threads profile request failed")
             return {}
+
+    def _download_profile_picture(self, picture_url):
+        """Fetch a current Threads avatar server-side, avoiding stale CDN links in browsers."""
+        if not picture_url:
+            return None
+
+        try:
+            response = requests.get(picture_url, timeout=10)
+            response.raise_for_status()
+            content_type = (
+                response.headers.get("Content-Type", "image/jpeg")
+                .split(";", 1)[0]
+                .strip()
+                .lower()
+            )
+            if not content_type.startswith("image/") or not response.content:
+                _logger.warning("Threads profile picture response was not an image.")
+                return None
+            return response.content, content_type
+        except requests.RequestException as exc:
+            _logger.warning("Unable to fetch Threads profile picture: %s", exc)
+            return None
 
     def _refresh_profile_if_needed(self, access_token, params):
         """Refresh profile metadata so the website does not keep an expired CDN URL."""
@@ -465,6 +490,84 @@ class ThreadsController(http.Controller):
             return params.get_param(
                 "odoo_website_social_feed.threads_access_token"
             )
+
+    @http.route(
+        "/threads/profile-picture",
+        type="http",
+        auth="public",
+        methods=["GET"],
+        csrf=False,
+    )
+    def threads_profile_picture(self, **kwargs):
+        """Serve a cached avatar through Odoo and refresh an expired Meta CDN URL."""
+        cached = self._get_cached(
+            _profile_picture_cache,
+            "profile",
+            THREADS_PROFILE_PICTURE_CACHE_TTL,
+        )
+        if cached is not None:
+            image_data, content_type = cached
+            return request.make_response(
+                image_data,
+                headers=[
+                    ("Content-Type", content_type),
+                    ("Cache-Control", "public, max-age=300"),
+                    ("X-Content-Type-Options", "nosniff"),
+                ],
+            )
+
+        access_token = self._refresh_token_if_needed()
+        if not access_token:
+            return request.not_found()
+
+        params = request.env["ir.config_parameter"].sudo()
+        self._refresh_profile_if_needed(access_token, params)
+
+        picture_key = "odoo_website_social_feed.threads_profile_picture_url"
+        picture_url = params.get_param(picture_key)
+        picture = self._download_profile_picture(picture_url)
+
+        if picture is None:
+            # A stored Threads CDN URL may expire before the normal profile refresh.
+            # Fetch fresh profile metadata once, update the stored URL, then retry.
+            profile = self._get_profile(access_token)
+            if profile:
+                if profile.get("username"):
+                    params.set_param(
+                        "odoo_website_social_feed.threads_username",
+                        profile["username"],
+                    )
+                if profile.get("name"):
+                    params.set_param(
+                        "odoo_website_social_feed.threads_name",
+                        profile["name"],
+                    )
+                picture_url = profile.get("threads_profile_picture_url")
+                if picture_url:
+                    params.set_param(picture_key, picture_url)
+                    params.set_param(
+                        "odoo_website_social_feed.threads_profile_last_refresh",
+                        datetime.now(timezone.utc).isoformat(),
+                    )
+                    picture = self._download_profile_picture(picture_url)
+
+        if picture is None:
+            return request.make_response(
+                "",
+                headers=[("Cache-Control", "no-store")],
+                status=502,
+            )
+
+        image_data, content_type = picture
+        self._set_cached(_profile_picture_cache, "profile", picture)
+        return request.make_response(
+            image_data,
+            headers=[
+                ("Content-Type", content_type),
+                ("Cache-Control", "public, max-age=300"),
+                ("X-Content-Type-Options", "nosniff"),
+            ],
+        )
 
     @http.route(
         "/threads/insights",
