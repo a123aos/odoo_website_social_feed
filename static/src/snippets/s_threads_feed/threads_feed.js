@@ -169,7 +169,8 @@ export class ThreadsFeed extends Interaction {
             const avatarImage = document.createElement("img");
             avatarImage.className = "o_threads_feed_avatar";
             avatarImage.alt = profile.name || post.username || "Threads";
-            avatarImage.src = avatarUrl;
+            // Use the same-origin proxy so expired Threads CDN URLs can be refreshed server-side.
+            avatarImage.src = "/threads/profile-picture";
             avatarImage.loading = "lazy";
             avatarImage.referrerPolicy = "no-referrer";
             avatarImage.addEventListener("error", () => {
