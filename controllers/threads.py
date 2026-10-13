@@ -22,6 +22,8 @@ THREADS_PROFILE_URL = "https://graph.threads.net/me"
 THREADS_PROFILE_FIELDS = "id,username,name,threads_profile_picture_url"
 THREADS_INSIGHTS_METRICS = "views,likes,replies,reposts,quotes,shares"
 THREADS_FEED_CACHE_TTL = 60
+THREADS_PROFILE_REFRESH_TTL = 12 * 60 * 60
+THREADS_PROFILE_RETRY_TTL = 15 * 60
 THREADS_REPLIES_CACHE_TTL = 60
 THREADS_INSIGHTS_CACHE_TTL = 60
 
@@ -287,6 +289,74 @@ class ThreadsController(http.Controller):
             _logger.exception("Threads profile request failed")
             return {}
 
+    def _refresh_profile_if_needed(self, access_token, params):
+        """Refresh profile metadata so the website does not keep an expired CDN URL."""
+        now = datetime.now(timezone.utc)
+        picture_key = (
+            "odoo_website_social_feed.threads_profile_picture_url"
+        )
+        refresh_key = (
+            "odoo_website_social_feed.threads_profile_last_refresh"
+        )
+        attempt_key = (
+            "odoo_website_social_feed.threads_profile_last_attempt"
+        )
+
+        def parse_timestamp(value):
+            if not value:
+                return None
+            try:
+                timestamp = datetime.fromisoformat(value)
+            except (TypeError, ValueError):
+                return None
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            return timestamp
+
+        current_picture = params.get_param(picture_key)
+        last_refresh = parse_timestamp(params.get_param(refresh_key))
+        if (
+            current_picture
+            and last_refresh
+            and now - last_refresh
+            < timedelta(seconds=THREADS_PROFILE_REFRESH_TTL)
+        ):
+            return
+
+        last_attempt = parse_timestamp(params.get_param(attempt_key))
+        if (
+            last_attempt
+            and now - last_attempt
+            < timedelta(seconds=THREADS_PROFILE_RETRY_TTL)
+        ):
+            return
+
+        # Throttle retries if the Threads API is temporarily unavailable.
+        params.set_param(attempt_key, now.isoformat())
+        profile = self._get_profile(access_token)
+        if not profile:
+            return
+
+        if profile.get("username"):
+            params.set_param(
+                "odoo_website_social_feed.threads_username",
+                profile["username"],
+            )
+        if profile.get("name"):
+            params.set_param(
+                "odoo_website_social_feed.threads_name",
+                profile["name"],
+            )
+
+        picture_url = profile.get("threads_profile_picture_url")
+        if picture_url:
+            params.set_param(picture_key, picture_url)
+            params.set_param(
+                refresh_key,
+                datetime.now(timezone.utc).isoformat(),
+            )
+            _logger.info("Threads profile picture URL refreshed.")
+
     def _get_post_insights(self, access_token, post_id):
         cached = self._get_cached(_insights_cache, post_id, THREADS_INSIGHTS_CACHE_TTL)
         if cached is not None:
@@ -524,6 +594,9 @@ class ThreadsController(http.Controller):
         cached = self._get_cached(_feed_cache, cache_key, THREADS_FEED_CACHE_TTL)
         if cached is not None:
             return request.make_json_response(cached)
+
+        params = request.env["ir.config_parameter"].sudo()
+        self._refresh_profile_if_needed(access_token, params)
 
         try:
             response = requests.get(
