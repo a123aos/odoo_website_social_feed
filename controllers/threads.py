@@ -518,7 +518,17 @@ class ThreadsController(http.Controller):
 
         access_token = self._refresh_token_if_needed()
         if not access_token:
-            return request.not_found()
+            _logger.error(
+                "Threads profile picture requested, but no Threads access token is configured."
+            )
+            return request.make_response(
+                "Threads profile picture unavailable: Threads is not connected.",
+                headers=[
+                    ("Content-Type", "text/plain; charset=utf-8"),
+                    ("Cache-Control", "no-store"),
+                ],
+                status=503,
+            )
 
         params = request.env["ir.config_parameter"].sudo()
         self._refresh_profile_if_needed(access_token, params)
