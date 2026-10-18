@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!--
+        Odoo 19 normally prefers the selected product variant's image on product
+        cards whenever that variant has an image. Force the shop/product-tile
+        primary and secondary images to come from the product template gallery.
+        Product detail pages keep their normal variant-image behavior.
+    -->
+    <template id="products_item_use_template_image"
+              inherit_id="website_sale.products_item"
+              name="Shop cards use product template images">
+        <xpath expr="//t[@t-set='all_images_list'][@t-if]" position="attributes">
+            <attribute name="t-value">product._get_images()</attribute>
+        </xpath>
+    </template>
+</odoo>
